@@ -1,6 +1,6 @@
 import React from "react";
-import Container from "../components/Container";
-import SEO from "../components/SEO";
+import Container from "../components/container";
+import SEO from "../components/seo";
 
 export default function ThankYou() {
   return (
