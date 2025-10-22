@@ -1,6 +1,6 @@
+// server.js
 import express from "express";
 import nodemailer from "nodemailer";
-import bodyParser from "body-parser";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -8,45 +8,59 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-app.use(bodyParser.json());
-app.use(express.static("dist"));
+app.use(express.json());
 
+// ---- Gmail SMTP transporter ----
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
+    user: process.env.EMAIL_USER, // e.g. brandon.warriorr@gmail.com
+    pass: process.env.EMAIL_PASS, // 16-char app password
   },
 });
 
+// ---- Contact endpoint ----
 app.post("/api/contact", async (req, res) => {
-  const { name, email, phone, message } = req.body;
+  const { name, email, phone, message } = req.body || {};
+  if (!name || !email || !message) {
+    return res.status(400).json({ error: "Missing fields" });
+  }
 
   try {
     await transporter.sendMail({
-      from: process.env.MAIL_FROM,
-      to: process.env.MAIL_TO,
+      from: process.env.MAIL_FROM, // "Warrior Joinery <your@gmail.com>"
+      to: process.env.MAIL_TO,     // your inbox
       subject: `New enquiry from ${name}`,
-      text: `
-Name: ${name}
-Email: ${email}
-Phone: ${phone}
-
-Message:
-${message}
-      `,
+      text: [
+        `Name: ${name}`,
+        `Email: ${email}`,
+        `Phone: ${phone || "—"}`,
+        "",
+        "Message:",
+        message,
+      ].join("\n"),
     });
-
-    res.json({ ok: true });
-  } catch (error) {
-    console.error("❌ Email send error:", error);
-    res.status(500).json({ error: "Failed to send email" });
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error("❌ Email send error:", err);
+    return res.status(500).json({ error: "Failed to send email" });
   }
 });
 
-app.get("/*", (_, res) => {
-  res.sendFile(path.join(__dirname, "dist", "index.html"));
+// ---- Static SPA ----
+const distPath = path.join(__dirname, "dist");
+app.use(express.static(distPath));
+
+// Health check (optional)
+app.get("/healthz", (_req, res) => res.json({ ok: true, ts: new Date().toISOString() }));
+
+// Express v5-compatible SPA fallback
+app.get("/*", (_req, res) => {
+  res.sendFile(path.join(distPath, "index.html"));
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`✅ Server running on port ${PORT}`);
+  console.log(`[server] Serving static from: ${distPath}`);
+});
