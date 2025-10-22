@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---- Base tweaks ---- */
+:root {
+  --ring: #2C5E7A;
+}
+
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body { @apply font-sans bg-neutral-50 text-neutral-900; }
+  h1,h2,h3 { @apply tracking-tight font-semibold text-neutral-900; }
+  a { @apply underline-offset-2 decoration-transparent hover:decoration-current; }
+}
+
+/* ---- Reusable components ---- */
+@layer components {
+  .container-safe { @apply mx-auto w-full max-w-content px-4; }
+  .btn { @apply inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm font-semibold transition; }
+  .btn-primary { @apply btn bg-steel text-white shadow-sm hover:opacity-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--ring)]; }
+  .link { @apply rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--ring)]; }
+}
+
+/* Reduced motion safe-guard */
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; scroll-behavior: auto !important; }
+}
