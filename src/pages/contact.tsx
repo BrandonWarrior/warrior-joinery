@@ -11,11 +11,15 @@ export default function Contact() {
         <Container className="py-12">
           <h1 className="text-3xl font-semibold">Get in touch</h1>
           <p className="mt-3 max-w-prose text-neutral-700">
-            For quotes or questions, send me a quick message below or call directly. I aim to reply within one working day.
+            Send me a quick message below and I’ll reply within one working day. 
+            Prefer a call? <a className="link" href="tel:+44">Call now</a> or email <a className="link" href="mailto:you@example.com">you@example.com</a>.
           </p>
           <div className="mt-6">
             <ContactForm />
           </div>
+          <p className="mt-6 text-sm text-neutral-500">
+            Your details are used only to respond to your enquiry. No spam.
+          </p>
         </Container>
       </section>
     </>
