@@ -54,10 +54,10 @@ app.use(express.static(distPath));
 // Health check (optional)
 app.get("/healthz", (_req, res) => res.json({ ok: true, ts: new Date().toISOString() }));
 
-// Express v5-compatible SPA fallback
-app.get("/*", (_req, res) => {
-  res.sendFile(path.join(distPath, "index.html"));
-});
+// SPA fallback (must be after API + static)
+app.use((_req, res) => {
+    res.sendFile(path.join(distPath, "index.html"));
+  });  
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
