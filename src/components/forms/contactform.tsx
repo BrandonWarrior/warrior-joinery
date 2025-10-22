@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -10,16 +10,15 @@ const formSchema = z.object({
   email: z.string().email("Enter a valid email address"),
   phone: z.string().optional(),
   message: z.string().min(10, "Please include a short message"),
-  // anti-spam fields
-  company: z.string().max(0).optional(), // honeypot: must be blank
-  submittedAt: z.number().optional(),    // simple timing check
+  company: z.string().max(0).optional(),   // honeypot (ignored by server)
+  submittedAt: z.number().optional(),
 });
-
 type FormData = z.infer<typeof formSchema>;
 
 export default function ContactForm() {
   const navigate = useNavigate();
   const mountedAtRef = useRef<number>(Date.now());
+  const [status, setStatus] = useState<null | { type: "ok" | "error"; msg: string }>(null);
 
   const {
     register,
@@ -30,12 +29,12 @@ export default function ContactForm() {
   } = useForm<FormData>({ resolver: zodResolver(formSchema) });
 
   async function onSubmit(data: FormData) {
-    try {
-      // attach timing
-      setValue("submittedAt", Date.now());
+    setStatus(null);
+    setValue("submittedAt", Date.now());
 
+    try {
       if (import.meta.env.DEV) {
-        console.log("💡 DEV mode — payload:", { ...data, mountedAt: mountedAtRef.current });
+        console.log("DEV payload:", { ...data, mountedAt: mountedAtRef.current });
         await new Promise((r) => setTimeout(r, 300));
         reset();
         track?.("generate_lead", { form: "contact", mode: "dev" });
@@ -51,20 +50,42 @@ export default function ContactForm() {
 
       if (res.ok) {
         reset();
+        setStatus({ type: "ok", msg: "Sent — taking you to the thank-you page…" });
         track?.("generate_lead", { form: "contact" });
         navigate("/thank-you");
       } else {
-        const err = await res.json().catch(() => ({}));
-        alert(err?.error || "Something went wrong, please try again.");
+        let msg = "Something went wrong, please try again.";
+        try {
+          const j = await res.json();
+          if (j?.error) msg = j.error;
+        } catch {
+          const t = await res.text().catch(() => "");
+          if (t) msg = t;
+        }
+        console.error("Submit failed:", res.status, msg);
+        setStatus({ type: "error", msg });
       }
     } catch (err) {
-      console.error(err);
-      alert("Could not send. Please try again later.");
+      console.error("Network/JS error:", err);
+      setStatus({ type: "error", msg: "Could not send. Check your connection and try again." });
     }
   }
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="mx-auto max-w-lg space-y-4" noValidate>
+      <div aria-live="polite">
+        {status?.type === "ok" && (
+          <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-green-800">
+            {status.msg}
+          </div>
+        )}
+        {status?.type === "error" && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-red-800">
+            {status.msg}
+          </div>
+        )}
+      </div>
+
       {/* honeypot */}
       <div className="hidden">
         <label>
@@ -76,57 +97,34 @@ export default function ContactForm() {
 
       <div>
         <label htmlFor="name" className="block text-sm font-medium">Name</label>
-        <input
-          id="name"
-          type="text"
-          {...register("name")}
-          className="mt-1 w-full rounded-lg border border-neutral-300 p-2 focus:border-steel focus:ring-steel"
-          required
-        />
+        <input id="name" type="text" {...register("name")}
+          className="mt-1 w-full rounded-lg border border-neutral-300 p-2 focus:border-steel focus:ring-steel" required />
         {errors.name && <p className="text-sm text-red-600">{errors.name.message}</p>}
       </div>
 
       <div>
         <label htmlFor="email" className="block text-sm font-medium">Email</label>
-        <input
-          id="email"
-          type="email"
-          {...register("email")}
-          className="mt-1 w-full rounded-lg border border-neutral-300 p-2 focus:border-steel focus:ring-steel"
-          required
-        />
+        <input id="email" type="email" {...register("email")}
+          className="mt-1 w-full rounded-lg border border-neutral-300 p-2 focus:border-steel focus:ring-steel" required />
         {errors.email && <p className="text-sm text-red-600">{errors.email.message}</p>}
       </div>
 
       <div>
         <label htmlFor="phone" className="block text-sm font-medium">Phone (optional)</label>
-        <input
-          id="phone"
-          type="tel"
-          {...register("phone")}
-          className="mt-1 w-full rounded-lg border border-neutral-300 p-2 focus:border-steel focus:ring-steel"
-        />
+        <input id="phone" type="tel" {...register("phone")}
+          className="mt-1 w-full rounded-lg border border-neutral-300 p-2 focus:border-steel focus:ring-steel" />
       </div>
 
       <div>
         <label htmlFor="message" className="block text-sm font-medium">Message</label>
-        <textarea
-          id="message"
-          rows={4}
-          {...register("message")}
-          className="mt-1 w-full rounded-lg border border-neutral-300 p-2 focus:border-steel focus:ring-steel"
-          required
-        />
+        <textarea id="message" rows={4} {...register("message")}
+          className="mt-1 w-full rounded-lg border border-neutral-300 p-2 focus:border-steel focus:ring-steel" required />
         {errors.message && <p className="text-sm text-red-600">{errors.message.message}</p>}
       </div>
 
       <button type="submit" disabled={isSubmitting} className="btn-primary w-full sm:w-auto">
         {isSubmitting ? "Sending..." : "Send Message"}
       </button>
-
-      <p className="sr-only" aria-live="polite">
-        {isSubmitting ? "Sending" : "Idle"}
-      </p>
     </form>
   );
 }
