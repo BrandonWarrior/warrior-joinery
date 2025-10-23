@@ -1,4 +1,4 @@
-import React from "react";
+
 import Container from "../components/container";
 import SEO from "../components/seo";
 import TestimonialCard from "../components/testimonialcard";

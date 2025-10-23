@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+
 import Lightbox from "./media/lightbox";
 
 export type GalleryItem = {

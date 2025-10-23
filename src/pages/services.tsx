@@ -1,4 +1,4 @@
-import React from "react";
+
 import Container from "../components/container";
 import SEO from "../components/seo";
 import CtaBand from "../components/sections/ctaband";

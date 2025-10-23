@@ -1,4 +1,4 @@
-import React, { PropsWithChildren } from "react";
+import type { PropsWithChildren } from "react";
 
 /** Simple max-width container with consistent side padding */
 export default function Container({ children, className = "" }: PropsWithChildren<{ className?: string }>) {
