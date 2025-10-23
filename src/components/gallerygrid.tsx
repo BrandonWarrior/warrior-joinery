@@ -1,6 +1,5 @@
-
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import Lightbox from "./media/lightbox";
-import { useMemo } from "react";
 
 export type GalleryItem = {
   id: string;

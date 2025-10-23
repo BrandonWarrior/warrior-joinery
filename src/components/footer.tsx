@@ -1,4 +1,4 @@
-
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { NavLink } from "react-router-dom";
 
 export default function Footer() {
