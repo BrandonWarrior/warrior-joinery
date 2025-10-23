@@ -9,7 +9,8 @@ const formSchema = z.object({
   email: z.string().email("Please enter a valid email address."),
   phone: z.string().optional(),
   message: z.string().min(10, "Please add a short message (10+ characters)."),
-  company: z.string().max(0).optional(), // honeypot
+  // ✅ Honeypot: optional — no client-side rejection
+  company: z.string().optional(),
   submittedAt: z.number().optional(),
 });
 type FormData = z.infer<typeof formSchema>;
@@ -28,12 +29,11 @@ export default function ContactForm() {
     trigger,
   } = useForm<FormData>({ resolver: zodResolver(formSchema), mode: "onSubmit" });
 
-  // Called when validation passes
+  // ---- On valid submit ----
   async function onValid(data: FormData) {
     setStatus(null);
     setValue("submittedAt", Date.now());
 
-    // DEV visibility
     if (import.meta.env.DEV) {
       console.log("[contact] onValid payload", { ...data, mountedAt: mountedAtRef.current });
     }
@@ -63,9 +63,8 @@ export default function ContactForm() {
     }
   }
 
-  // Called when validation fails — we’ll surface a summary
+  // ---- On invalid submit ----
   function onInvalid() {
-    // Force showing field errors immediately
     trigger();
     setStatus({ type: "error", msg: "Please fix the highlighted fields and try again." });
   }
@@ -76,7 +75,7 @@ export default function ContactForm() {
       onSubmit={handleSubmit(onValid, onInvalid)}
       className="mx-auto max-w-lg space-y-4"
     >
-      {/* Status / summary */}
+      {/* Status banner */}
       <div aria-live="polite">
         {status?.type === "ok" && (
           <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-green-800">
@@ -90,17 +89,25 @@ export default function ContactForm() {
         )}
       </div>
 
-      {/* Honeypot */}
-      <div className="hidden">
-        <label>
-          Company
-          <input type="text" autoComplete="organization" {...register("company")} />
-        </label>
+      {/* ✅ Honeypot (hidden) */}
+      <div className="sr-only" aria-hidden="true">
+        <label htmlFor="company">Company</label>
+        <input
+          id="company"
+          type="text"
+          autoComplete="off"
+          tabIndex={-1}
+          {...register("company")}
+          defaultValue=""
+        />
         <input type="hidden" {...register("submittedAt", { valueAsNumber: true })} />
       </div>
 
+      {/* Name */}
       <div>
-        <label htmlFor="name" className="block text-sm font-medium">Name</label>
+        <label htmlFor="name" className="block text-sm font-medium">
+          Name
+        </label>
         <input
           id="name"
           type="text"
@@ -110,8 +117,11 @@ export default function ContactForm() {
         {errors.name && <p className="text-sm text-red-600">{errors.name.message}</p>}
       </div>
 
+      {/* Email */}
       <div>
-        <label htmlFor="email" className="block text-sm font-medium">Email</label>
+        <label htmlFor="email" className="block text-sm font-medium">
+          Email
+        </label>
         <input
           id="email"
           type="email"
@@ -121,8 +131,11 @@ export default function ContactForm() {
         {errors.email && <p className="text-sm text-red-600">{errors.email.message}</p>}
       </div>
 
+      {/* Phone */}
       <div>
-        <label htmlFor="phone" className="block text-sm font-medium">Phone (optional)</label>
+        <label htmlFor="phone" className="block text-sm font-medium">
+          Phone (optional)
+        </label>
         <input
           id="phone"
           type="tel"
@@ -131,8 +144,11 @@ export default function ContactForm() {
         />
       </div>
 
+      {/* Message */}
       <div>
-        <label htmlFor="message" className="block text-sm font-medium">Message</label>
+        <label htmlFor="message" className="block text-sm font-medium">
+          Message
+        </label>
         <textarea
           id="message"
           rows={4}
@@ -142,12 +158,11 @@ export default function ContactForm() {
         {errors.message && <p className="text-sm text-red-600">{errors.message.message}</p>}
       </div>
 
-      {/* IMPORTANT: type="submit" */}
+      {/* Submit */}
       <button type="submit" disabled={isSubmitting} className="btn-primary w-full sm:w-auto">
         {isSubmitting ? "Sending..." : "Send Message"}
       </button>
 
-      {/* DEV hint */}
       {import.meta.env.DEV && !isSubmitSuccessful && (
         <p className="text-xs text-neutral-500">DEV: open the Console to see submit logs.</p>
       )}
