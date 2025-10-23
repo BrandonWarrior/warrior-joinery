@@ -1,20 +1,30 @@
-
-import { Helmet } from "react-helmet-async";
+import { useEffect } from "react";
 
 type Props = {
-  title: string;
+  title?: string;
   description?: string;
 };
 
-const SEO: React.FC<Props> = ({ title, description }) => {
-  const fullTitle = `${title} | Warrior Joinery`;
-  return (
-    <Helmet>
-      <title>{fullTitle}</title>
-      {description && <meta name="description" content={description} />}
-      <meta name="theme-color" content="#2C5E7A" />
-    </Helmet>
-  );
-};
+export default function SEO({ title, description }: Props) {
+  useEffect(() => {
+    const prevTitle = document.title;
+    if (title) document.title = `${title} · Warrior Joinery`;
 
-export default SEO;
+    let meta = document.querySelector('meta[name="description"]') as HTMLMetaElement | null;
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.name = "description";
+      document.head.appendChild(meta);
+    }
+    const prevDesc = meta.content;
+    if (description) meta.content = description;
+
+    return () => {
+      // optional: restore previous values on unmount
+      document.title = prevTitle;
+      if (description) meta!.content = prevDesc;
+    };
+  }, [title, description]);
+
+  return null;
+}
