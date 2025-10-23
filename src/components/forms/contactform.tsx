@@ -1,3 +1,4 @@
+// src/components/forms/contactform.tsx
 import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -9,7 +10,7 @@ const formSchema = z.object({
   email: z.string().email("Please enter a valid email address."),
   phone: z.string().optional(),
   message: z.string().min(10, "Please add a short message (10+ characters)."),
-  // ✅ Honeypot: optional — no client-side rejection
+  // Honeypot: optional client-side; we screen on server
   company: z.string().optional(),
   submittedAt: z.number().optional(),
 });
@@ -27,16 +28,15 @@ export default function ContactForm() {
     setValue,
     reset,
     trigger,
-  } = useForm<FormData>({ resolver: zodResolver(formSchema), mode: "onSubmit" });
+  } = useForm<FormData>({
+    resolver: zodResolver(formSchema),
+    mode: "onSubmit",
+  });
 
-  // ---- On valid submit ----
   async function onValid(data: FormData) {
     setStatus(null);
+    // set programmatically; do NOT register as an input
     setValue("submittedAt", Date.now());
-
-    if (import.meta.env.DEV) {
-      console.log("[contact] onValid payload", { ...data, mountedAt: mountedAtRef.current });
-    }
 
     try {
       const res = await fetch("/api/contact", {
@@ -63,19 +63,17 @@ export default function ContactForm() {
     }
   }
 
-  // ---- On invalid submit ----
   function onInvalid() {
+    // surface field errors now
     trigger();
+    // Helpful while we’re finishing setup:
+    if (import.meta.env.DEV) console.log("[contact] validation errors", errors);
     setStatus({ type: "error", msg: "Please fix the highlighted fields and try again." });
   }
 
   return (
-    <form
-      noValidate
-      onSubmit={handleSubmit(onValid, onInvalid)}
-      className="mx-auto max-w-lg space-y-4"
-    >
-      {/* Status banner */}
+    <form noValidate onSubmit={handleSubmit(onValid, onInvalid)} className="mx-auto max-w-lg space-y-4">
+      {/* Status */}
       <div aria-live="polite">
         {status?.type === "ok" && (
           <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-green-800">
@@ -89,7 +87,7 @@ export default function ContactForm() {
         )}
       </div>
 
-      {/* ✅ Honeypot (hidden) */}
+      {/* Honeypot (hidden & ignored by screen readers) */}
       <div className="sr-only" aria-hidden="true">
         <label htmlFor="company">Company</label>
         <input
@@ -100,14 +98,10 @@ export default function ContactForm() {
           {...register("company")}
           defaultValue=""
         />
-        <input type="hidden" {...register("submittedAt", { valueAsNumber: true })} />
       </div>
 
-      {/* Name */}
       <div>
-        <label htmlFor="name" className="block text-sm font-medium">
-          Name
-        </label>
+        <label htmlFor="name" className="block text-sm font-medium">Name</label>
         <input
           id="name"
           type="text"
@@ -117,11 +111,8 @@ export default function ContactForm() {
         {errors.name && <p className="text-sm text-red-600">{errors.name.message}</p>}
       </div>
 
-      {/* Email */}
       <div>
-        <label htmlFor="email" className="block text-sm font-medium">
-          Email
-        </label>
+        <label htmlFor="email" className="block text-sm font-medium">Email</label>
         <input
           id="email"
           type="email"
@@ -131,11 +122,8 @@ export default function ContactForm() {
         {errors.email && <p className="text-sm text-red-600">{errors.email.message}</p>}
       </div>
 
-      {/* Phone */}
       <div>
-        <label htmlFor="phone" className="block text-sm font-medium">
-          Phone (optional)
-        </label>
+        <label htmlFor="phone" className="block text-sm font-medium">Phone (optional)</label>
         <input
           id="phone"
           type="tel"
@@ -144,11 +132,8 @@ export default function ContactForm() {
         />
       </div>
 
-      {/* Message */}
       <div>
-        <label htmlFor="message" className="block text-sm font-medium">
-          Message
-        </label>
+        <label htmlFor="message" className="block text-sm font-medium">Message</label>
         <textarea
           id="message"
           rows={4}
@@ -158,7 +143,6 @@ export default function ContactForm() {
         {errors.message && <p className="text-sm text-red-600">{errors.message.message}</p>}
       </div>
 
-      {/* Submit */}
       <button type="submit" disabled={isSubmitting} className="btn-primary w-full sm:w-auto">
         {isSubmitting ? "Sending..." : "Send Message"}
       </button>
