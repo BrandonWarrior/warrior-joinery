@@ -1,4 +1,4 @@
-
+import { Link } from "react-router-dom";
 import Container from "../components/container";
 import SEO from "../components/seo";
 
@@ -13,12 +13,14 @@ export default function Home() {
         <Container>
           <h1 className="text-3xl font-semibold">Internal Door Installation & Repairs</h1>
           <p className="mt-3 max-w-prose text-neutral-700">
-            Neat, reliable work at sensible prices. I fit new internal doors, repair
-            sticking or rubbing doors, and sort latches, handles, and hinges.
+            I provide neat, reliable work at sensible prices. I fit new internal doors,
+            repair sticking or rubbing doors, and sort latches, handles, and hinges.
           </p>
-          <a href="/contact" className="btn-primary mt-6 inline-flex">
-            Get a Free Quote
-          </a>
+
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <Link to="/contact" className="btn-primary inline-flex">Get a Free Quote</Link>
+            <Link to="/services" className="link text-neutral-800">View Services</Link>
+          </div>
         </Container>
       </section>
     </>
