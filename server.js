@@ -24,35 +24,21 @@ const transporter = nodemailer.createTransport({
 // ---- Contact endpoint (unchanged) ----
 app.post("/api/contact", async (req, res) => {
   const { name, email, phone, message, company } = req.body || {};
+  if (company && company.trim() !== "") return res.json({ ok: true }); // honeypot
 
-  // Honeypot: silently ignore bots
-  if (company && company.trim() !== "") return res.json({ ok: true });
-
-  // Basic validation
   if (!name || !email || !message) {
     return res.status(400).json({ error: "Missing fields" });
   }
 
-  const plain = [
-    `Name: ${name}`,
-    `Email: ${email}`,
-    `Phone: ${phone || "—"}`,
-    "",
-    "Message:",
-    message,
-  ].join("\n");
+  const plain = [`Name: ${name}`, `Email: ${email}`, `Phone: ${phone || "—"}`, "", "Message:", message].join("\n");
 
   const html = `
     <table style="max-width:560px;width:100%;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;border-collapse:collapse">
       <tr><td style="padding:16px 0;font-size:18px;font-weight:600;">New enquiry – Warrior Joinery</td></tr>
       <tr><td style="padding:8px 0"><strong>Name:</strong> ${escapeHtml(name)}</td></tr>
-      <tr><td style="padding:8px 0"><strong>Email:</strong> <a href="mailto:${escapeAttr(
-        email
-      )}">${escapeHtml(email)}</a></td></tr>
+      <tr><td style="padding:8px 0"><strong>Email:</strong> <a href="mailto:${escapeAttr(email)}">${escapeHtml(email)}</a></td></tr>
       <tr><td style="padding:8px 0"><strong>Phone:</strong> ${escapeHtml(phone || "—")}</td></tr>
-      <tr><td style="padding:8px 0"><strong>Message:</strong><br>${nl2br(
-        escapeHtml(message)
-      )}</td></tr>
+      <tr><td style="padding:8px 0"><strong>Message:</strong><br>${nl2br(escapeHtml(message))}</td></tr>
       <tr><td style="padding-top:16px;color:#6b7280;font-size:12px">
         Sent from warrior-joinery.co.uk contact form
       </td></tr>
@@ -60,7 +46,6 @@ app.post("/api/contact", async (req, res) => {
   `;
 
   try {
-    // 1) Send to you
     await transporter.sendMail({
       from: process.env.MAIL_FROM,
       to: process.env.MAIL_TO,
@@ -70,7 +55,7 @@ app.post("/api/contact", async (req, res) => {
       html,
     });
 
-    // 2) Optional auto-ack
+    // Optional auto-ack
     try {
       await transporter.sendMail({
         from: process.env.MAIL_FROM,
@@ -101,7 +86,7 @@ Warrior Joinery`,
   }
 });
 
-// ---- Helpers to keep HTML safe (unchanged) ----
+// ---- Helpers ----
 function escapeHtml(s = "") {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
@@ -114,7 +99,7 @@ function nl2br(s = "") {
 
 // ================= Cloudinary Admin & Gallery =================
 
-// Simple token guard for admin endpoints
+// Token guard
 const requireAdmin = (req, res, next) => {
   const token = req.header("x-admin-token");
   if (!token || token !== process.env.ADMIN_TOKEN) {
@@ -130,15 +115,19 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Accept a single file in memory
+// Upload (memory), max 15MB
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
 
-// Admin upload endpoint
+// Admin upload (supports optional caption + tags)
 app.post("/api/admin/upload", requireAdmin, upload.single("file"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No file provided" });
     const folder = process.env.CLOUDINARY_FOLDER || "warrior-joinery/gallery";
     const caption = req.body?.caption || "";
+    const tags = (req.body?.tags || "")
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
 
     const uploaded = await new Promise((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(
@@ -147,6 +136,7 @@ app.post("/api/admin/upload", requireAdmin, upload.single("file"), async (req, r
           resource_type: "image",
           overwrite: false,
           context: caption ? { caption } : undefined,
+          tags: tags.length ? tags : undefined,
           transformation: [{ quality: "auto", fetch_format: "auto" }],
         },
         (err, result) => (err ? reject(err) : resolve(result))
@@ -161,6 +151,7 @@ app.post("/api/admin/upload", requireAdmin, upload.single("file"), async (req, r
       width: uploaded.width,
       height: uploaded.height,
       caption,
+      tags,
     });
   } catch (err) {
     console.error("❌ Upload error:", err);
@@ -168,7 +159,53 @@ app.post("/api/admin/upload", requireAdmin, upload.single("file"), async (req, r
   }
 });
 
-// Public gallery list endpoint
+// Admin list (includes public_id, tags, caption)
+app.get("/api/admin/list", requireAdmin, async (req, res) => {
+  try {
+    const folder = process.env.CLOUDINARY_FOLDER || "warrior-joinery/gallery";
+    const max = Math.min(Number(req.query.limit) || 100, 200);
+    const r = await cloudinary.search
+      .expression(`folder="${folder}" AND resource_type:image`)
+      .sort_by("created_at", "desc")
+      .max_results(max)
+      .execute();
+
+    const items = (r.resources || []).map((it) => ({
+      public_id: it.public_id,
+      url: it.secure_url,
+      width: it.width,
+      height: it.height,
+      caption: it.context?.custom?.caption || "",
+      tags: it.tags || [],
+      created_at: it.created_at,
+    }));
+
+    res.json({ items });
+  } catch (err) {
+    console.error("❌ Admin list error:", err);
+    res.status(500).json({ error: "Failed to fetch admin list" });
+  }
+});
+
+// Admin delete by public_id (safer than path param with slashes)
+app.post("/api/admin/delete", requireAdmin, async (req, res) => {
+  try {
+    const { public_id } = req.body || {};
+    if (!public_id) return res.status(400).json({ error: "Missing public_id" });
+
+    const result = await cloudinary.uploader.destroy(public_id, { resource_type: "image" });
+    if (result.result !== "ok" && result.result !== "not found") {
+      // "not found" is OK to consider as success from UX perspective
+      return res.status(500).json({ error: "Cloudinary deletion failed" });
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("❌ Delete error:", err);
+    res.status(500).json({ error: "Delete failed" });
+  }
+});
+
+// Public gallery (unchanged)
 app.get("/api/gallery", async (_req, res) => {
   try {
     const folder = process.env.CLOUDINARY_FOLDER || "warrior-joinery/gallery";
