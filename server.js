@@ -3,6 +3,8 @@ import express from "express";
 import nodemailer from "nodemailer";
 import path from "path";
 import { fileURLToPath } from "url";
+import multer from "multer";
+import { v2 as cloudinary } from "cloudinary";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -10,7 +12,7 @@ const __dirname = path.dirname(__filename);
 const app = express();
 app.use(express.json());
 
-// ---- Gmail SMTP transporter ----
+// ---- Gmail SMTP transporter (unchanged) ----
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
@@ -19,7 +21,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// ---- Contact endpoint ----
+// ---- Contact endpoint (unchanged) ----
 app.post("/api/contact", async (req, res) => {
   const { name, email, phone, message, company } = req.body || {};
 
@@ -58,17 +60,17 @@ app.post("/api/contact", async (req, res) => {
   `;
 
   try {
-    // 1️⃣ Send to you
+    // 1) Send to you
     await transporter.sendMail({
-      from: process.env.MAIL_FROM,  // "Warrior Joinery <brandon.warriorr@gmail.com>"
-      to: process.env.MAIL_TO,      // your inbox
-      replyTo: email,               // ✅ makes reply go to sender
+      from: process.env.MAIL_FROM,
+      to: process.env.MAIL_TO,
+      replyTo: email,
       subject: `New enquiry from ${name}`,
       text: plain,
       html,
     });
 
-    // 2️⃣ (Optional) Auto-acknowledgement email to sender
+    // 2) Optional auto-ack
     try {
       await transporter.sendMail({
         from: process.env.MAIL_FROM,
@@ -99,12 +101,9 @@ Warrior Joinery`,
   }
 });
 
-// ---- Helpers to keep HTML safe ----
+// ---- Helpers to keep HTML safe (unchanged) ----
 function escapeHtml(s = "") {
-  return String(s)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 function escapeAttr(s = "") {
   return escapeHtml(s).replace(/"/g, "&quot;");
@@ -113,14 +112,98 @@ function nl2br(s = "") {
   return String(s).replace(/\n/g, "<br>");
 }
 
-// ---- Static SPA (React build) ----
+// ================= Cloudinary Admin & Gallery =================
+
+// Simple token guard for admin endpoints
+const requireAdmin = (req, res, next) => {
+  const token = req.header("x-admin-token");
+  if (!token || token !== process.env.ADMIN_TOKEN) {
+    return res.status(401).json({ error: "Unauthorised" });
+  }
+  next();
+};
+
+// Cloudinary config
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+// Accept a single file in memory
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
+
+// Admin upload endpoint
+app.post("/api/admin/upload", requireAdmin, upload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "No file provided" });
+    const folder = process.env.CLOUDINARY_FOLDER || "warrior-joinery/gallery";
+    const caption = req.body?.caption || "";
+
+    const uploaded = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          folder,
+          resource_type: "image",
+          overwrite: false,
+          context: caption ? { caption } : undefined,
+          transformation: [{ quality: "auto", fetch_format: "auto" }],
+        },
+        (err, result) => (err ? reject(err) : resolve(result))
+      );
+      stream.end(req.file.buffer);
+    });
+
+    res.json({
+      ok: true,
+      url: uploaded.secure_url,
+      public_id: uploaded.public_id,
+      width: uploaded.width,
+      height: uploaded.height,
+      caption,
+    });
+  } catch (err) {
+    console.error("❌ Upload error:", err);
+    res.status(500).json({ error: "Upload failed" });
+  }
+});
+
+// Public gallery list endpoint
+app.get("/api/gallery", async (_req, res) => {
+  try {
+    const folder = process.env.CLOUDINARY_FOLDER || "warrior-joinery/gallery";
+    const r = await cloudinary.search
+      .expression(`folder="${folder}" AND resource_type:image`)
+      .sort_by("created_at", "desc")
+      .max_results(50)
+      .execute();
+
+    const items = (r.resources || []).map((it) => ({
+      src: it.secure_url,
+      alt: "Warrior Joinery — recent work",
+      width: it.width,
+      height: it.height,
+      caption: it.context?.custom?.caption || "",
+      srcSet: [
+        { src: it.secure_url.replace(/\/upload\/v\d+\//, "/upload/q_auto,f_auto,w_600/"), width: 600 },
+        { src: it.secure_url.replace(/\/upload\/v\d+\//, "/upload/q_auto,f_auto,w_900/"), width: 900 },
+        { src: it.secure_url.replace(/\/upload\/v\d+\//, "/upload/q_auto,f_auto,w_1400/"), width: 1400 },
+      ],
+    }));
+
+    res.json({ items });
+  } catch (err) {
+    console.error("❌ List error:", err);
+    res.status(500).json({ error: "Failed to fetch images" });
+  }
+});
+
+// ================= Static SPA (React build) =================
 const distPath = path.join(__dirname, "dist");
 app.use(express.static(distPath));
 
-// Health check (optional)
 app.get("/healthz", (_req, res) => res.json({ ok: true, ts: new Date().toISOString() }));
 
-// SPA fallback
 app.use((_req, res) => {
   res.sendFile(path.join(distPath, "index.html"));
 });

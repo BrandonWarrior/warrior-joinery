@@ -1,30 +1,27 @@
-import { useEffect } from "react";
+import { Helmet } from "react-helmet-async";
 
+type Json = Record<string, any>;
 type Props = {
-  title?: string;
+  title: string;
   description?: string;
+  canonical?: string;
+  jsonLd?: Json | Json[]; // <- NEW
 };
 
-export default function SEO({ title, description }: Props) {
-  useEffect(() => {
-    const prevTitle = document.title;
-    if (title) document.title = `${title} · Warrior Joinery`;
+export default function SEO({ title, description, canonical, jsonLd }: Props) {
+  const jsonScripts = Array.isArray(jsonLd) ? jsonLd : jsonLd ? [jsonLd] : [];
 
-    let meta = document.querySelector('meta[name="description"]') as HTMLMetaElement | null;
-    if (!meta) {
-      meta = document.createElement("meta");
-      meta.name = "description";
-      document.head.appendChild(meta);
-    }
-    const prevDesc = meta.content;
-    if (description) meta.content = description;
-
-    return () => {
-      // optional: restore previous values on unmount
-      document.title = prevTitle;
-      if (description) meta!.content = prevDesc;
-    };
-  }, [title, description]);
-
-  return null;
+  return (
+    <Helmet>
+      <title>{title ? `Warrior Joinery – ${title}` : "Warrior Joinery"}</title>
+      {description && <meta name="description" content={description} />}
+      {canonical && <link rel="canonical" href={canonical} />}
+      {/* JSON-LD */}
+      {jsonScripts.map((obj, i) => (
+        <script key={i} type="application/ld+json">
+          {JSON.stringify(obj)}
+        </script>
+      ))}
+    </Helmet>
+  );
 }
