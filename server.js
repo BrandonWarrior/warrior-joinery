@@ -1,229 +1,237 @@
-// server.js
-import express from "express";
-import nodemailer from "nodemailer";
-import path from "path";
-import { fileURLToPath } from "url";
+// src/pages/admin.tsx
+import { useEffect, useState } from "react";
+import Container from "../components/container";
+import SEO from "../components/seo";
 
-// Cloudinary + file upload
-import { v2 as cloudinary } from "cloudinary";
-import multer from "multer";
+type CloudinaryAdminItem = {
+  public_id: string;
+  secure_url: string;
+  context?: { custom?: { caption?: string } };
+  width?: number;
+  height?: number;
+  format?: string;
+  created_at?: string;
+};
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+export default function AdminPage() {
+  const [token, setToken] = useState<string>(() => localStorage.getItem("adminToken") || "");
+  const [items, setItems] = useState<CloudinaryAdminItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [caption, setCaption] = useState("");
 
-const app = express();
-app.use(express.json());
+  // Persist token
+  useEffect(() => {
+    localStorage.setItem("adminToken", token || "");
+  }, [token]);
 
-// ---------- Cloudinary config ----------
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME, // e.g. dgv1yketq
-  api_key: process.env.CLOUDINARY_API_KEY,       // e.g. 559629487195279
-  api_secret: process.env.CLOUDINARY_API_SECRET, // keep secret in Heroku config
-  secure: true,
-});
-
-const UPLOAD_FOLDER = process.env.CLOUDINARY_FOLDER || "warrior-joinery/gallery";
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
-});
-
-// ---------- Simple admin token middleware ----------
-function requireAdmin(req, res, next) {
-  const token = req.header("X-Admin-Token");
-  if (!process.env.ADMIN_TOKEN) {
-    return res.status(500).json({ error: "ADMIN_TOKEN not set on server" });
-  }
-  if (token !== process.env.ADMIN_TOKEN) {
-    return res.status(401).json({ error: "Unauthorised" });
-  }
-  next();
-}
-
-// ---------- Gmail SMTP (contact emails) ----------
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER, // e.g. brandon.warriorr@gmail.com
-    pass: process.env.EMAIL_PASS, // 16-char app password
-  },
-});
-
-// ---------- Contact endpoint ----------
-app.post("/api/contact", async (req, res) => {
-  const { name, email, phone, message, company } = req.body || {};
-
-  // Honeypot: ignore obvious bots quietly
-  if (company && String(company).trim() !== "") return res.json({ ok: true });
-
-  if (!name || !email || !message) {
-    return res.status(400).json({ error: "Missing fields" });
-  }
-
-  const plain = [
-    `Name: ${name}`,
-    `Email: ${email}`,
-    `Phone: ${phone || "—"}`,
-    "",
-    "Message:",
-    message,
-  ].join("\n");
-
-  const html = `
-    <table style="max-width:560px;width:100%;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;border-collapse:collapse">
-      <tr><td style="padding:16px 0;font-size:18px;font-weight:600;">New enquiry – Warrior Joinery</td></tr>
-      <tr><td style="padding:8px 0"><strong>Name:</strong> ${escapeHtml(name)}</td></tr>
-      <tr><td style="padding:8px 0"><strong>Email:</strong> <a href="mailto:${escapeAttr(email)}">${escapeHtml(email)}</a></td></tr>
-      <tr><td style="padding:8px 0"><strong>Phone:</strong> ${escapeHtml(phone || "—")}</td></tr>
-      <tr><td style="padding:8px 0"><strong>Message:</strong><br>${nl2br(escapeHtml(message))}</td></tr>
-      <tr><td style="padding-top:16px;color:#6b7280;font-size:12px">
-        Sent from warrior-joinery contact form
-      </td></tr>
-    </table>
-  `;
-
-  try {
-    // 1) Send to you
-    await transporter.sendMail({
-      from: process.env.MAIL_FROM, // "Warrior Joinery <you@gmail.com>"
-      to: process.env.MAIL_TO,     // your inbox
-      replyTo: email,              // reply goes to sender
-      subject: `New enquiry from ${name}`,
-      text: plain,
-      html,
-    });
-
-    // 2) Auto-acknowledgement (best-effort)
-    try {
-      await transporter.sendMail({
-        from: process.env.MAIL_FROM,
-        to: email,
-        subject: "Thanks for your enquiry – Warrior Joinery",
-        text: `Hi ${name},
-
-Thanks for getting in touch. I’ve received your message and will reply as soon as I can.
-
-— Brandon
-Warrior Joinery`,
-        html: `
-          <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;line-height:1.5">
-            <p>Hi ${escapeHtml(name)},</p>
-            <p>Thanks for getting in touch. I’ve received your message and will reply as soon as I can.</p>
-            <p>— Brandon<br/>Warrior Joinery</p>
-          </div>
-        `,
-      });
-    } catch (ackErr) {
-      console.warn("⚠️ Auto-reply failed:", ackErr?.message || ackErr);
+  async function loadList() {
+    if (!token) {
+      setError("Enter your admin token to continue.");
+      return;
     }
-
-    return res.json({ ok: true });
-  } catch (err) {
-    console.error("❌ Email send error:", err);
-    return res.status(500).json({ error: "Failed to send email" });
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/list", {
+        headers: { "X-Admin-Token": token },
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j?.error || "Failed to fetch list");
+      const mapped: CloudinaryAdminItem[] = (j.resources || j?.resources?.resources || j?.resources || []).map(
+        (r: any) => ({
+          public_id: r.public_id,
+          secure_url: r.secure_url,
+          context: r.context || null,
+          width: r.width,
+          height: r.height,
+          format: r.format,
+          created_at: r.created_at,
+        })
+      );
+      setItems(mapped);
+    } catch (e: any) {
+      setError(e.message || "Failed to load images");
+    } finally {
+      setLoading(false);
+    }
   }
-});
 
-// ---------- Public gallery (Cloudinary search) ----------
-app.get("/api/gallery", async (_req, res) => {
-  try {
-    const result = await cloudinary.search
-      .expression(`folder:${UPLOAD_FOLDER} AND resource_type:image`)
-      .sort_by("created_at", "desc")
-      .max_results(50)
-      .execute();
+  async function onUpload(e: React.FormEvent) {
+    e.preventDefault();
+    if (!token) return setError("Enter your admin token first.");
+    if (!file) return setError("Choose a file to upload.");
 
-    res.json({
-      resources: (result.resources || []).map((r) => ({
-        public_id: r.public_id,
-        secure_url: r.secure_url,
-        width: r.width,
-        height: r.height,
-        format: r.format,
-        created_at: r.created_at,
-        context: r.context || null,
-      })),
-    });
-  } catch (err) {
-    console.error("❌ /api/gallery error", err);
-    res.status(500).json({ error: "Failed to load gallery" });
+    setUploading(true);
+    setError(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      if (caption) fd.append("caption", caption);
+
+      const res = await fetch("/api/admin/upload", {
+        method: "POST",
+        headers: { "X-Admin-Token": token },
+        body: fd,
+      });
+      const j = await res.json();
+      if (!res.ok || !j.ok) throw new Error(j?.error || "Upload failed");
+
+      // Prepend the new image
+      setItems((prev) => [
+        { public_id: j.public_id, secure_url: j.secure_url, context: caption ? { custom: { caption } } : undefined },
+        ...prev,
+      ]);
+      setFile(null);
+      setCaption("");
+      (document.getElementById("file") as HTMLInputElement)?.value && ((document.getElementById("file") as HTMLInputElement).value = "");
+      alert("✅ Upload complete");
+    } catch (e: any) {
+      setError(e.message || "Upload failed");
+    } finally {
+      setUploading(false);
+    }
   }
-});
 
-// ---------- Admin: list images ----------
-app.get("/api/admin/list", requireAdmin, async (_req, res) => {
-  try {
-    const result = await cloudinary.search
-      .expression(`folder:${UPLOAD_FOLDER} AND resource_type:image`)
-      .sort_by("created_at", "desc")
-      .max_results(100)
-      .execute();
-    res.json(result);
-  } catch (err) {
-    console.error("❌ /api/admin/list error", err);
-    res.status(500).json({ error: "Failed to load admin list" });
+  async function onDelete(public_id: string) {
+    if (!token) return setError("Enter your admin token first.");
+    if (!confirm("Delete this image? This cannot be undone.")) return;
+
+    try {
+      const res = await fetch(`/api/admin/delete/${encodeURIComponent(public_id)}`, {
+        method: "DELETE",
+        headers: { "X-Admin-Token": token },
+      });
+      const j = await res.json();
+      if (!res.ok || !j.ok) throw new Error(j?.error || "Delete failed");
+      setItems((prev) => prev.filter((x) => x.public_id !== public_id));
+      alert("✅ Deleted");
+    } catch (e: any) {
+      setError(e.message || "Delete failed");
+    }
   }
-});
 
-// ---------- Admin: upload image ----------
-app.post("/api/admin/upload", requireAdmin, upload.single("file"), async (req, res) => {
-  try {
-    const fileBuffer = req.file?.buffer;
-    if (!fileBuffer) return res.status(400).json({ error: "No file uploaded" });
+  return (
+    <>
+      <SEO title="Admin" description="Manage gallery images." />
 
-    const caption = String(req.body.caption || "").slice(0, 200);
+      <section className="py-10 sm:py-14">
+        <Container>
+          <h1 className="text-3xl font-semibold">Admin – Gallery</h1>
+          <p className="mt-2 text-neutral-700">
+            Upload new images and remove old ones. Images go to Cloudinary and appear on the Gallery page automatically.
+          </p>
 
-    const stream = cloudinary.uploader.upload_stream(
-      {
-        folder: UPLOAD_FOLDER,
-        resource_type: "image",
-        context: caption ? { caption } : undefined,
-      },
-      (error, uploaded) => {
-        if (error) {
-          console.error("❌ Cloudinary upload error:", error);
-          return res.status(500).json({ error: "Upload failed" });
-        }
-        return res.json({
-          ok: true,
-          public_id: uploaded.public_id,
-          secure_url: uploaded.secure_url,
-        });
-      }
-    );
+          {/* Token */}
+          <div className="mt-6 rounded-xl border p-4">
+            <label htmlFor="token" className="block text-sm font-medium">
+              Admin token
+            </label>
+            <div className="mt-2 flex gap-2">
+              <input
+                id="token"
+                type="password"
+                placeholder="Paste your ADMIN_TOKEN"
+                value={token}
+                onChange={(e) => setToken(e.target.value)}
+                className="w-full rounded-lg border border-neutral-300 p-2 focus:border-steel focus:ring-steel"
+              />
+              <button
+                type="button"
+                onClick={loadList}
+                className="btn-primary whitespace-nowrap"
+                disabled={!token || loading}
+              >
+                {loading ? "Loading…" : "Load images"}
+              </button>
+            </div>
+            <p className="mt-2 text-xs text-neutral-500">
+              Tip: token is stored locally in your browser only.
+            </p>
+          </div>
 
-    stream.end(fileBuffer);
-  } catch (err) {
-    console.error("❌ /api/admin/upload error", err);
-    res.status(500).json({ error: "Failed to upload" });
-  }
-});
+          {/* Upload */}
+          <form onSubmit={onUpload} className="mt-6 rounded-xl border p-4 space-y-3">
+            <h2 className="text-lg font-semibold">Upload</h2>
+            <div>
+              <label htmlFor="file" className="block text-sm font-medium">
+                File (JPG/PNG/WebP, up to 10MB)
+              </label>
+              <input
+                id="file"
+                type="file"
+                accept="image/*"
+                onChange={(e) => setFile(e.target.files?.[0] || null)}
+                className="mt-1 w-full rounded-lg border border-neutral-300 p-2 file:mr-3 file:rounded-md file:border-0 file:bg-neutral-200 file:px-3 file:py-2"
+              />
+            </div>
 
-// ---------- Helpers ----------
-function escapeHtml(s = "") {
-  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            <div>
+              <label htmlFor="caption" className="block text-sm font-medium">
+                Caption (optional)
+              </label>
+              <input
+                id="caption"
+                type="text"
+                maxLength={200}
+                value={caption}
+                onChange={(e) => setCaption(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-neutral-300 p-2"
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <button type="submit" className="btn-primary" disabled={uploading || !token || !file}>
+                {uploading ? "Uploading…" : "Upload"}
+              </button>
+              <button
+                type="button"
+                onClick={loadList}
+                className="btn-secondary"
+                disabled={loading || !token}
+              >
+                Refresh list
+              </button>
+            </div>
+
+            {error && <p className="text-sm text-red-600">{error}</p>}
+          </form>
+
+          {/* Grid */}
+          <div className="mt-8">
+            <h2 className="text-lg font-semibold mb-3">Images</h2>
+            {items.length === 0 ? (
+              <p className="text-neutral-600">No images yet.</p>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                {items.map((it) => (
+                  <figure key={it.public_id} className="rounded-lg overflow-hidden border relative group">
+                    <img
+                      src={it.secure_url}
+                      alt={it.context?.custom?.caption || "Uploaded image"}
+                      className="w-full h-auto object-cover"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                    {it.context?.custom?.caption && (
+                      <figcaption className="p-2 text-sm">{it.context.custom.caption}</figcaption>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => onDelete(it.public_id)}
+                      className="absolute top-2 right-2 hidden group-hover:block bg-red-600 text-white rounded-md px-2 py-1 text-xs shadow"
+                    >
+                      Delete
+                    </button>
+                  </figure>
+                ))}
+              </div>
+            )}
+          </div>
+        </Container>
+      </section>
+    </>
+  );
 }
-function escapeAttr(s = "") {
-  return escapeHtml(s).replace(/"/g, "&quot;");
-}
-function nl2br(s = "") {
-  return String(s).replace(/\n/g, "<br>");
-}
-
-// ---------- Static SPA (React build) ----------
-const distPath = path.join(__dirname, "dist");
-app.use(express.static(distPath));
-
-// Health check
-app.get("/healthz", (_req, res) => res.json({ ok: true, ts: new Date().toISOString() }));
-
-// SPA fallback
-app.use((_req, res) => {
-  res.sendFile(path.join(distPath, "index.html"));
-});
-
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`✅ Server running on port ${PORT}`);
-  console.log(`[server] Serving static from: ${distPath}`);
-});
