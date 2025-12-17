@@ -37,7 +37,7 @@ export default function GalleryGrid({ items }: Props) {
           const sizes = "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw";
 
           return (
-            <li key={item.src}>
+            <li key={`${item.src}-${i}`}>
               <button
                 onClick={() => open(i)}
                 className="group block w-full overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm

@@ -1,61 +1,69 @@
 import { useEffect, useState } from "react";
 import Container from "../components/container";
 import SEO from "../components/seo";
+import GalleryGrid, { type GalleryItem } from "../components/gallerygrid";
+import { fetchGallery, type GalleryResource } from "../lib/gallery-api";
 
 export default function GalleryPage() {
-  const [images, setImages] = useState<any[]>([]);
+  const siteUrl =
+    typeof window !== "undefined"
+      ? window.location.origin
+      : "https://warrior-joinery-eb793f26e853.herokuapp.com";
+
+  const [items, setItems] = useState<GalleryItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchImages() {
+    (async () => {
       try {
-        const res = await fetch("/api/gallery");
-        if (!res.ok) throw new Error("Failed to fetch gallery images");
-        const data = await res.json();
-        setImages(data.resources || []);
-      } catch (err: any) {
-        console.error("Gallery fetch failed:", err);
-        setError(err.message);
+        const resources: GalleryResource[] = await fetchGallery();
+        console.log("[gallery] got resources:", resources);
+
+        // ✅ Do NOT filter out HEIC here anymore.
+        // Backend now returns f_auto,q_auto URLs which render in browsers.
+        const mapped: GalleryItem[] = resources.map((r) => ({
+          src: r.display_url || r.secure_url,
+          alt: (r.context && (r.context as any).caption) || "Work example",
+          caption: (r.context && (r.context as any).caption) || undefined,
+          width: r.width ?? 900,
+          height: r.height ?? 1200,
+        }));
+
+        setItems(mapped);
+      } catch (e: any) {
+        console.error("[gallery] load error", e);
+        setError("Could not load gallery right now.");
       }
-    }
-    fetchImages();
+    })();
   }, []);
 
   return (
     <>
       <SEO
         title="Gallery"
-        description="A selection of recent internal door installations and repairs completed across West Yorkshire."
+        description="A selection of internal door installations and repairs completed across West Yorkshire."
+        canonical={`${siteUrl}/gallery`}
       />
+
       <section className="py-10 sm:py-14">
         <Container>
-          <h1 className="text-3xl font-semibold mb-3">Gallery</h1>
-          <p className="max-w-prose text-neutral-700 mb-6">
+          <h1 className="text-3xl font-semibold">Gallery</h1>
+          <p className="mt-3 max-w-prose text-neutral-700">
             A few examples of recent work. Click any image to enlarge.
           </p>
 
-          {error && (
-            <p className="text-red-600">Error: {error}</p>
-          )}
+          <div className="mt-8">
+            {error && (
+              <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-red-800">
+                {error}
+              </div>
+            )}
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            {images.map((img) => (
-              <figure
-                key={img.public_id}
-                className="rounded-xl overflow-hidden border border-neutral-200 bg-neutral-100"
-              >
-                <img
-                  src={img.secure_url}
-                  alt={img.context?.custom?.caption || "Work example"}
-                  className="w-full h-auto object-cover"
-                />
-                {img.context?.custom?.caption && (
-                  <figcaption className="p-2 text-sm text-neutral-700">
-                    {img.context.custom.caption}
-                  </figcaption>
-                )}
-              </figure>
-            ))}
+            {!items && !error && (
+              <p className="text-neutral-500">Loading images…</p>
+            )}
+
+            {items && <GalleryGrid items={items} />}
           </div>
         </Container>
       </section>
