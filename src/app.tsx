@@ -21,7 +21,6 @@ export default function App() {
         <Route path="/gallery" element={<Gallery />} />
         <Route path="/gallery-viewer" element={<GalleryViewer />} />
         <Route path="/about" element={<About />} />
-        <Route path="/reviews" element={<Reviews />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/thank-you" element={<ThankYou />} />
         <Route path="/privacy" element={<Privacy />} />

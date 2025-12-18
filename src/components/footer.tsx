@@ -27,11 +27,6 @@ export default function Footer() {
                   Contact
                 </NavLink>
               </li>
-              <li>
-                <NavLink to="/reviews" className={linkClass}>
-                  Reviews
-                </NavLink>
-              </li>
 
               {/* Divider */}
               <li className="hidden sm:block text-neutral-300">|</li>
