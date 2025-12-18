@@ -21,7 +21,8 @@ cloudinary.config({
   secure: true,
 });
 
-const UPLOAD_FOLDER = process.env.CLOUDINARY_FOLDER || "warrior-joinery/gallery";
+const UPLOAD_FOLDER =
+  process.env.CLOUDINARY_FOLDER || "warrior-joinery/gallery";
 
 const toAutoUrl = (url = "") =>
   url.replace("/upload/", "/upload/f_auto,q_auto/");
@@ -144,9 +145,9 @@ app.get("/api/gallery", async (_req, res) => {
 
 /* ---------------- Admin API (Basic Auth + Token) ---------------- */
 
-// Basic auth for all admin API endpoints
 app.use("/api/admin", requireBasicAuth);
 
+/* LIST */
 app.get("/api/admin/list", requireAdminToken, async (_req, res) => {
   try {
     const result = await cloudinary.api.resources({
@@ -176,6 +177,7 @@ app.get("/api/admin/list", requireAdminToken, async (_req, res) => {
   }
 });
 
+/* UPLOAD */
 app.post(
   "/api/admin/upload",
   requireAdminToken,
@@ -206,37 +208,30 @@ app.post(
   }
 );
 
-/* ✅ FIXED DELETE: supports slashes in public_id + returns Cloudinary result */
-app.delete(
-  "/api/admin/delete/:public_id(*)",
-  requireAdminToken,
-  async (req, res) => {
-    try {
-      const publicId = req.params.public_id;
+/* DELETE ✅ Works with encodeURIComponent on the client */
+app.delete("/api/admin/delete/:public_id", requireAdminToken, async (req, res) => {
+  try {
+    // Client sends encodeURIComponent(public_id), so we decode here
+    const publicId = decodeURIComponent(req.params.public_id);
 
-      const result = await cloudinary.uploader.destroy(publicId, {
-        resource_type: "image",
-        type: "upload",
-      });
+    const result = await cloudinary.uploader.destroy(publicId, {
+      resource_type: "image",
+      type: "upload",
+    });
 
-      if (result.result !== "ok") {
-        return res.status(400).json({
-          error: "Delete failed",
-          result,
-          public_id: publicId,
-        });
-      }
-
-      res.json({ ok: true, result, public_id: publicId });
-    } catch (err) {
-      console.error("❌ delete error:", err);
-      res.status(500).json({
-        error: "Delete failed",
-        message: err?.error?.message || err?.message || String(err),
-      });
+    if (result.result !== "ok") {
+      return res.status(400).json({ error: "Delete failed", result, public_id: publicId });
     }
+
+    res.json({ ok: true, result, public_id: publicId });
+  } catch (err) {
+    console.error("❌ delete error:", err);
+    res.status(500).json({
+      error: "Delete failed",
+      message: err?.error?.message || err?.message || String(err),
+    });
   }
-);
+});
 
 /* ---------------- SPA ---------------- */
 

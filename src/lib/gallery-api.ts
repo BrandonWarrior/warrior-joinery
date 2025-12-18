@@ -5,7 +5,6 @@ export type GalleryResource = {
     height?: number;
     format?: string;
     created_at?: string;
-    context?: Record<string, any> | null;
   };
   
   /* ---------------- PUBLIC ---------------- */
@@ -25,7 +24,7 @@ export type GalleryResource = {
     });
     if (!res.ok) throw new Error("Admin list failed");
     const json = await res.json();
-    return json.resources ?? json;
+    return json.resources ?? [];
   }
   
   export async function adminUpload(token: string, file: File) {
@@ -38,20 +37,14 @@ export type GalleryResource = {
       body: fd,
     });
   
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      throw new Error(`Upload failed (${res.status}) ${text}`);
-    }
+    if (!res.ok) throw new Error("Upload failed");
   }
   
   export async function adminDelete(token: string, public_id: string) {
-    const res = await fetch(
-      `/api/admin/delete/${encodeURIComponent(public_id)}`,
-      {
-        method: "DELETE",
-        headers: { "X-Admin-Token": token },
-      }
-    );
+    const res = await fetch(`/api/admin/delete/${encodeURIComponent(public_id)}`, {
+      method: "DELETE",
+      headers: { "X-Admin-Token": token },
+    });
   
     if (!res.ok) {
       const text = await res.text().catch(() => "");
