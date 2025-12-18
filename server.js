@@ -21,8 +21,7 @@ cloudinary.config({
   secure: true,
 });
 
-const UPLOAD_FOLDER =
-  process.env.CLOUDINARY_FOLDER || "warrior-joinery/gallery";
+const UPLOAD_FOLDER = process.env.CLOUDINARY_FOLDER || "warrior-joinery/gallery";
 
 const toAutoUrl = (url = "") =>
   url.replace("/upload/", "/upload/f_auto,q_auto/");
@@ -34,10 +33,46 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 },
 });
 
-/* ---------------- Admin auth ---------------- */
+/* ---------------- Basic Auth (Admin) ---------------- */
 
-function requireAdmin(req, res, next) {
+function requireBasicAuth(req, res, next) {
+  const user = process.env.ADMIN_BASIC_USER;
+  const pass = process.env.ADMIN_BASIC_PASS;
+
+  // If you forget to set these, don't accidentally lock yourself out silently
+  if (!user || !pass) {
+    return res.status(500).json({ error: "Admin basic auth not configured" });
+  }
+
+  const header = req.headers.authorization || "";
+  const [scheme, encoded] = header.split(" ");
+
+  if (scheme !== "Basic" || !encoded) {
+    res.setHeader("WWW-Authenticate", 'Basic realm="Admin"');
+    return res.status(401).send("Authentication required.");
+  }
+
+  const decoded = Buffer.from(encoded, "base64").toString("utf8");
+  const sep = decoded.indexOf(":");
+  const u = sep >= 0 ? decoded.slice(0, sep) : "";
+  const p = sep >= 0 ? decoded.slice(sep + 1) : "";
+
+  if (u !== user || p !== pass) {
+    res.setHeader("WWW-Authenticate", 'Basic realm="Admin"');
+    return res.status(401).send("Invalid credentials.");
+  }
+
+  next();
+}
+
+/* ---------------- Token Auth (Admin API) ---------------- */
+
+function requireAdminToken(req, res, next) {
   const token = req.header("X-Admin-Token");
+
+  if (!process.env.ADMIN_TOKEN) {
+    return res.status(500).json({ error: "ADMIN_TOKEN not set" });
+  }
   if (token !== process.env.ADMIN_TOKEN) {
     return res.status(401).json({ error: "Unauthorised" });
   }
@@ -56,7 +91,11 @@ const transporter = nodemailer.createTransport({
 
 app.post("/api/contact", async (req, res) => {
   const { name, email, message, company } = req.body || {};
-  if (company) return res.json({ ok: true });
+  if (company && String(company).trim() !== "") return res.json({ ok: true });
+
+  if (!name || !email || !message) {
+    return res.status(400).json({ error: "Missing fields" });
+  }
 
   try {
     await transporter.sendMail({
@@ -67,8 +106,9 @@ app.post("/api/contact", async (req, res) => {
       text: message,
     });
     res.json({ ok: true });
-  } catch {
-    res.status(500).json({ error: "Email failed" });
+  } catch (err) {
+    console.error("❌ Email error:", err);
+    res.status(500).json({ error: "Failed to send email" });
   }
 });
 
@@ -98,28 +138,52 @@ app.get("/api/gallery", async (_req, res) => {
       })),
     });
   } catch (err) {
-    console.error(err);
+    console.error("❌ /api/gallery error:", err);
     res.status(500).json({ error: "Failed to load gallery" });
   }
 });
 
-/* ---------------- Admin ---------------- */
+/* ---------------- Admin API (Basic Auth + Token) ---------------- */
 
-app.get("/api/admin/list", requireAdmin, async (_req, res) => {
-  const result = await cloudinary.api.resources({
-    type: "upload",
-    prefix: `${UPLOAD_FOLDER}/`,
-    resource_type: "image",
-    max_results: 100,
-  });
-  res.json(result);
+// Basic auth for all admin API endpoints
+app.use("/api/admin", requireBasicAuth);
+
+app.get("/api/admin/list", requireAdminToken, async (_req, res) => {
+  try {
+    const result = await cloudinary.api.resources({
+      type: "upload",
+      prefix: `${UPLOAD_FOLDER}/`,
+      resource_type: "image",
+      max_results: 100,
+    });
+
+    const resources = (result.resources || []).sort(
+      (a, b) => new Date(b.created_at) - new Date(a.created_at)
+    );
+
+    res.json({
+      resources: resources.map((r) => ({
+        public_id: r.public_id,
+        secure_url: toAutoUrl(r.secure_url),
+        width: r.width,
+        height: r.height,
+        format: r.format,
+        created_at: r.created_at,
+      })),
+    });
+  } catch (err) {
+    console.error("❌ admin list error:", err);
+    res.status(500).json({ error: "Failed to load admin list" });
+  }
 });
 
 app.post(
   "/api/admin/upload",
-  requireAdmin,
+  requireAdminToken,
   upload.single("file"),
   async (req, res) => {
+    if (!req.file?.buffer) return res.status(400).json({ error: "No file uploaded" });
+
     const stream = cloudinary.uploader.upload_stream(
       {
         folder: UPLOAD_FOLDER,
@@ -128,21 +192,33 @@ app.post(
       },
       (err, uploaded) => {
         if (err) return res.status(500).json({ error: "Upload failed" });
-        res.json({ ok: true, secure_url: toAutoUrl(uploaded.secure_url) });
+        res.json({ ok: true, secure_url: toAutoUrl(uploaded.secure_url), public_id: uploaded.public_id });
       }
     );
+
     stream.end(req.file.buffer);
   }
 );
 
-app.delete("/api/admin/delete/:public_id", requireAdmin, async (req, res) => {
-  await cloudinary.uploader.destroy(req.params.public_id);
-  res.json({ ok: true });
+app.delete("/api/admin/delete/:public_id", requireAdminToken, async (req, res) => {
+  try {
+    await cloudinary.uploader.destroy(req.params.public_id);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("❌ delete error:", err);
+    res.status(500).json({ error: "Delete failed" });
+  }
 });
 
 /* ---------------- SPA ---------------- */
 
 const distPath = path.join(__dirname, "dist");
+
+// Protect /admin route (page load) with Basic Auth
+app.get("/admin", requireBasicAuth, (_req, res) => {
+  res.sendFile(path.join(distPath, "index.html"));
+});
+
 app.use(express.static(distPath));
 
 app.get("/healthz", (_req, res) =>
@@ -156,6 +232,4 @@ app.use((_req, res) => {
 /* ---------------- Server ---------------- */
 
 const PORT = process.env.PORT || 5050;
-app.listen(PORT, () => {
-  console.log(`✅ Server running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
