@@ -39,7 +39,6 @@ function requireBasicAuth(req, res, next) {
   const user = process.env.ADMIN_BASIC_USER;
   const pass = process.env.ADMIN_BASIC_PASS;
 
-  // If you forget to set these, don't accidentally lock yourself out silently
   if (!user || !pass) {
     return res.status(500).json({ error: "Admin basic auth not configured" });
   }
@@ -182,7 +181,9 @@ app.post(
   requireAdminToken,
   upload.single("file"),
   async (req, res) => {
-    if (!req.file?.buffer) return res.status(400).json({ error: "No file uploaded" });
+    if (!req.file?.buffer) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
 
     const stream = cloudinary.uploader.upload_stream(
       {
@@ -192,7 +193,12 @@ app.post(
       },
       (err, uploaded) => {
         if (err) return res.status(500).json({ error: "Upload failed" });
-        res.json({ ok: true, secure_url: toAutoUrl(uploaded.secure_url), public_id: uploaded.public_id });
+
+        res.json({
+          ok: true,
+          secure_url: toAutoUrl(uploaded.secure_url),
+          public_id: uploaded.public_id,
+        });
       }
     );
 
@@ -200,15 +206,37 @@ app.post(
   }
 );
 
-app.delete("/api/admin/delete/:public_id", requireAdminToken, async (req, res) => {
-  try {
-    await cloudinary.uploader.destroy(req.params.public_id);
-    res.json({ ok: true });
-  } catch (err) {
-    console.error("❌ delete error:", err);
-    res.status(500).json({ error: "Delete failed" });
+/* ✅ FIXED DELETE: supports slashes in public_id + returns Cloudinary result */
+app.delete(
+  "/api/admin/delete/:public_id(*)",
+  requireAdminToken,
+  async (req, res) => {
+    try {
+      const publicId = req.params.public_id;
+
+      const result = await cloudinary.uploader.destroy(publicId, {
+        resource_type: "image",
+        type: "upload",
+      });
+
+      if (result.result !== "ok") {
+        return res.status(400).json({
+          error: "Delete failed",
+          result,
+          public_id: publicId,
+        });
+      }
+
+      res.json({ ok: true, result, public_id: publicId });
+    } catch (err) {
+      console.error("❌ delete error:", err);
+      res.status(500).json({
+        error: "Delete failed",
+        message: err?.error?.message || err?.message || String(err),
+      });
+    }
   }
-});
+);
 
 /* ---------------- SPA ---------------- */
 
