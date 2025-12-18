@@ -5,7 +5,6 @@ import Services from "./pages/services";
 import Gallery from "./pages/gallery";
 import GalleryViewer from "./pages/gallery-viewer";
 import About from "./pages/about";
-import Reviews from "./pages/reviews";
 import Contact from "./pages/contact";
 import ThankYou from "./pages/thank-you";
 import Privacy from "./pages/privacy";
