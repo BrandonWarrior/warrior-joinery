@@ -11,7 +11,7 @@ export default function Header() {
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3 link">
             <img
-              src="public/images/wj-logo.png"
+              src="/images/wj-logo.png"
               alt="Warrior Joinery"
               className="h-9 w-auto"
             />
