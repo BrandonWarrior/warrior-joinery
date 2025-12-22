@@ -41,9 +41,9 @@ export default function Home() {
               </h1>
 
               <p className="max-w-prose text-lg leading-8 text-neutral-700">
-                I provide neat, reliable work at sensible prices. I fit new internal
-                doors, repair sticking or rubbing doors, and sort latches, handles,
-                and hinges.
+                I specialise in internal doors only — neat fitting, smooth closing,
+                and a tidy finish. I supply and fit new doors, repair doors that stick
+                or rub, and sort handles, hinges, and latches.
               </p>
 
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -56,28 +56,28 @@ export default function Home() {
               </div>
 
               <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-neutral-600">
+                <span>✓ Doors fitted properly</span>
                 <span>✓ Clean, tidy finish</span>
                 <span>✓ Clear communication</span>
-                <span>✓ Done properly</span>
               </div>
             </div>
 
             {/* Right: proof panel */}
             <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-medium">What I do</h2>
+              <h2 className="text-lg font-medium">Internal door services</h2>
 
               <ul className="mt-4 space-y-3 text-sm text-neutral-700">
-                <li>• Internal door fitting & repairs</li>
-                <li>• Hinges, handles & latches</li>
-                <li>• Fire door installation (L2)</li>
-                <li>• Fitted furniture & finish carpentry</li>
+                <li>• New doors supplied &amp; fitted</li>
+                <li>• Repairs &amp; adjustments (sticking, rubbing, won’t latch)</li>
+                <li>• Handles, hinges &amp; latches replaced</li>
+                <li>• Advice on FD30 fire-rated doors</li>
               </ul>
 
               <div className="mt-6 border-t border-black/5 pt-4">
                 <p className="text-sm font-medium">Why choose Warrior Joinery</p>
                 <p className="mt-2 text-sm text-neutral-600">
-                  Over 7 years’ experience, tidy workmanship, and a straightforward,
-                  no-nonsense approach from start to finish.
+                  Straightforward pricing, tidy workmanship, and doors that close as
+                  they should — no drama.
                 </p>
               </div>
             </div>
@@ -85,40 +85,46 @@ export default function Home() {
         </Container>
       </section>
 
-      {/* SERVICES PREVIEW */}
+      {/* SERVICES PREVIEW (aligned to your Services page) */}
       <section className="border-t border-black/5 py-12">
         <Container>
-          <h2 className="text-xl font-semibold">Services</h2>
+          <h2 className="text-xl font-semibold">What I do</h2>
           <p className="mt-2 text-sm text-neutral-600">
-            A few of the most common jobs I’m booked for.
+            A few of the most common internal door jobs I’m booked for.
           </p>
 
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div className="rounded-2xl border border-black/10 p-5">
-              <h3 className="font-medium">Internal doors</h3>
+              <h3 className="font-medium">New doors supplied &amp; fitted</h3>
               <p className="mt-2 text-sm text-neutral-700">
-                Fitting, trimming, hinges, handles, latches, and repairs.
+                Standard sizes or made-to-measure. Even gaps, smooth close, tidy finish.
               </p>
             </div>
 
             <div className="rounded-2xl border border-black/10 p-5">
-              <h3 className="font-medium">Fitted furniture</h3>
+              <h3 className="font-medium">Repairs &amp; adjustments</h3>
               <p className="mt-2 text-sm text-neutral-700">
-                Wardrobes, alcove units, shelving, and made-to-measure storage.
+                Trimming, rehanging, or fixing doors that rub, stick, or won’t latch properly.
               </p>
             </div>
 
             <div className="rounded-2xl border border-black/10 p-5">
-              <h3 className="font-medium">Finish carpentry</h3>
+              <h3 className="font-medium">Hardware &amp; fire doors</h3>
               <p className="mt-2 text-sm text-neutral-700">
-                Skirting, architrave, boxing-in, and clean finishing details.
+                Handles, hinges, and latches replaced. Advice on FD30 fire-rated doors available.
               </p>
             </div>
+          </div>
+
+          <div className="mt-6">
+            <Link to="/services" className="link text-neutral-800 text-sm">
+              View all internal door services →
+            </Link>
           </div>
         </Container>
       </section>
 
-      {/* TRUST STRIP */}
+      {/* TRUST STRIP (keep it general + relevant) */}
       <section className="py-12">
         <Container>
           <div className="grid gap-8 md:grid-cols-[160px_1fr] md:items-center">
@@ -126,7 +132,7 @@ export default function Home() {
               <div className="rounded-full p-1 ring-1 ring-black/10 shadow-sm">
                 <img
                   src="/images/profile-pic.jpg"
-                  alt="Brandon Warrior – Founder of Warrior Joinery"
+                  alt="Brandon Warrior – Warrior Joinery"
                   className="h-28 w-28 rounded-full object-cover"
                   loading="lazy"
                 />
@@ -134,19 +140,18 @@ export default function Home() {
             </div>
 
             <div>
-              <h2 className="text-xl font-semibold">Built properly, finished cleanly.</h2>
+              <h2 className="text-xl font-semibold">A tidy job, done properly.</h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-700">
-                I’m Brandon, a multi-skilled joiner with over seven years’ experience.
-                I take pride in tidy workmanship, clear communication, and doing things
-                properly from start to finish.
+                I’m Brandon. I focus on internal doors and take pride in doing the job
+                properly — clean fitting, clear communication, and leaving your home tidy.
               </p>
 
               <div className="mt-4 flex flex-wrap gap-3">
-                <Link to="/about" className="link text-neutral-800 text-sm">
-                  Read more about me →
+                <Link to="/services" className="link text-neutral-800 text-sm">
+                  See services →
                 </Link>
-                <Link to="/gallery" className="link text-neutral-800 text-sm">
-                  View recent work →
+                <Link to="/contact" className="link text-neutral-800 text-sm">
+                  Get a quote →
                 </Link>
               </div>
             </div>
