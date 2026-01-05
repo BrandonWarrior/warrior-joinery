@@ -43,10 +43,10 @@ export default function Footer() {
                 </a>
               </li>
 
-              {/* Easy to add later
+              {/* add later
               <li>
                 <a
-                  href="https://www.instagram.com/yourhandle"
+                  href="https://www.instagram.com/myhandle"
                   target="_blank"
                   rel="noreferrer"
                   className={linkClass}

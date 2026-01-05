@@ -10,7 +10,6 @@ export default class ErrorBoundary extends Component<Props, State> {
     return { hasError: true };
   }
 
-  // Optional: log to a service
   componentDidCatch(error: unknown, info: unknown) {
     console.error("[ErrorBoundary] caught", { error, info });
   }

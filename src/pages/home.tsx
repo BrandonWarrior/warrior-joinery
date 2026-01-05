@@ -85,7 +85,7 @@ export default function Home() {
         </Container>
       </section>
 
-      {/* SERVICES PREVIEW (aligned to your Services page) */}
+      {/* SERVICES PREVIEW */}
       <section className="border-t border-black/5 py-12">
         <Container>
           <h2 className="text-xl font-semibold">What I do</h2>
@@ -124,7 +124,7 @@ export default function Home() {
         </Container>
       </section>
 
-      {/* TRUST STRIP (keep it general + relevant) */}
+      {/* TRUST STRIP */}
       <section className="py-12">
         <Container>
           <div className="grid gap-8 md:grid-cols-[160px_1fr] md:items-center">

@@ -208,7 +208,6 @@ app.post(
   }
 );
 
-/* DELETE ✅ Works with encodeURIComponent on the client */
 app.delete("/api/admin/delete/:public_id", requireAdminToken, async (req, res) => {
   try {
     // Client sends encodeURIComponent(public_id), so we decode here
