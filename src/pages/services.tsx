@@ -85,13 +85,13 @@ export default function Services() {
             <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
               <div className="text-sm font-semibold text-steel">Guide price</div>
               <div className="mt-1 text-lg font-semibold">Standard internal door</div>
-              <p className="mt-1 text-neutral-700">£40 per door – supplied & fitted</p>
+              <p className="mt-1 text-neutral-700">£40 per door – fitted</p>
             </div>
 
             <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
               <div className="text-sm font-semibold text-steel">Guide price</div>
               <div className="mt-1 text-lg font-semibold">Solid oak internal door</div>
-              <p className="mt-1 text-neutral-700">£85 per door – supplied & fitted</p>
+              <p className="mt-1 text-neutral-700">£85 per door – fitted</p>
             </div>
 
             <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
