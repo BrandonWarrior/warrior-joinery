@@ -27,7 +27,7 @@ export default function Services() {
         <Container className="pb-4">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <article className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
-              <h3 className="text-lg font-semibold">New doors supplied & fitted</h3>
+              <h3 className="text-lg font-semibold">New doors fitted</h3>
               <p className="mt-2 text-neutral-700">
                 Standard sizes or made-to-measure. Gaps even, latches aligned,
                 smooth close.
