@@ -85,19 +85,19 @@ export default function Services() {
             <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
               <div className="text-sm font-semibold text-steel">Guide price</div>
               <div className="mt-1 text-lg font-semibold">Standard internal door</div>
-              <p className="mt-1 text-neutral-700">£40 per door – fitted</p>
+              <p className="mt-1 text-neutral-700">£70 per door – fitted</p>
             </div>
 
             <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
               <div className="text-sm font-semibold text-steel">Guide price</div>
               <div className="mt-1 text-lg font-semibold">Solid oak internal door</div>
-              <p className="mt-1 text-neutral-700">£85 per door – fitted</p>
+              <p className="mt-1 text-neutral-700">£120 per door – fitted</p>
             </div>
 
             <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
               <div className="text-sm font-semibold text-steel">Guide price</div>
               <div className="mt-1 text-lg font-semibold">Rehang or adjustment</div>
-              <p className="mt-1 text-neutral-700">£30 per door</p>
+              <p className="mt-1 text-neutral-700">£40 per door</p>
             </div>
 
             <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
@@ -105,7 +105,7 @@ export default function Services() {
               <div className="mt-1 text-lg font-semibold">
                 Handle, hinge, or latch replacement
               </div>
-              <p className="mt-1 text-neutral-700">£20 per door</p>
+              <p className="mt-1 text-neutral-700">£25 per door</p>
             </div>
           </div>
 
